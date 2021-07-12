@@ -3,35 +3,47 @@ import requests
 import json
 import boto3
 import random
+import aws_encryption_sdk
+from aws_encryption_sdk import CommitmentPolicy
+
 def aws_api_call(credential):
     """
     Make AWS API call using credential obtained from parent EC2 instance
     """
+    session1 = boto3.session.Session(aws_access_key_id=credential['access_key_id'],aws_secret_access_key=credential['secret_access_key'],region_name='ap-northeast-1')
+    client =aws_encryption_sdk.EncryptionSDKClient(commitment_policy=CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT)
 
-    client = boto3.client(
+    kms_client = boto3.client(
         'kms',
         region_name = 'ap-northeast-1',
         aws_access_key_id = credential['access_key_id'],
         aws_secret_access_key = credential['secret_access_key'],
         aws_session_token = credential['token']
     )
+    
     desc='Customer Master Key'
     source_plaintext=random.randint(000000,999999)
     source_plaintext=str(source_plaintext)
     source_plaintext=str.encode(source_plaintext)
-    response = client.create_key(Description=desc)
+    response = kms_client.create_key(Description=desc)
+    kms_kwargs = dict(key_ids=[response['Arn']])
+    kms_kwargs["botocore_session"] = session1
     # This is just a demo API call to demonstrate that we can talk to AWS via API
-    ciphertext = client.encrypt(Plaintext=source_plaintext, KeyId=response['KeyMetadata']['KeyId'],EncryptionAlgorithm='SYMMETRIC_DEFAULT')
+    #ciphertext = client.encrypt(Plaintext=source_plaintext, KeyId=response['KeyMetadata']['KeyId'],EncryptionAlgorithm='SYMMETRIC_DEFAULT')
+    ciphertext, encryptor_header = client.encrypt(source=source_plaintext, key_provider=master_key_provider)
+
     print(ciphertext)
-    cycled_plaintext = client.decrypt(CiphertextBlob=ciphertext['CiphertextBlob'], KeyId=response['KeyMetadata']['KeyId'],EncryptionAlgorithm='SYMMETRIC_DEFAULT')
+    #cycled_plaintext = client.decrypt(CiphertextBlob=ciphertext['CiphertextBlob'], KeyId=response['KeyMetadata']['KeyId'],EncryptionAlgorithm='SYMMETRIC_DEFAULT')
+    cycled_plaintext, decrypted_header = client.decrypt(source=ciphertext, key_provider=master_key_provider)
+
     print(cycled_plaintext)
     
 
     # Return some data from API response
     return {
         'Plaintext':source_plaintext.decode(),
-        'Ciphertext': ciphertext['CiphertextBlob'],
-        'Decryptedtext': cycled_plaintext['Plaintext'].decode()
+        'Ciphertext': ciphertext,
+        'Decryptedtext': cycled_plaintext.decode()
     }
 
 def main():

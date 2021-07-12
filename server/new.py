@@ -23,31 +23,29 @@ def create_cmk(desc='Customer Master Key'):
     """
 
     # Create CMK
+    
     region_name = "ap-northeast-1"
     session1 = boto3.session.Session(aws_access_key_id='',aws_secret_access_key='',region_name=region_name)
-
+    client =aws_encryption_sdk.EncryptionSDKClient(commitment_policy=CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT)
+    kms_kwargs = dict(key_ids=["arn:aws:kms:ap-northeast-1:196375779214:key/177bb52d-65b1-43ab-911c-182161dc789e"])
     kms_client = session1.client('kms')
     # try:
+    master_key_provider = aws_encryption_sdk.StrictAwsKmsMasterKeyProvider(**kms_kwargs)
+   # print(kms_client.create_key(Description=desc))
+    kms_kwargs["botocore_session"] = session1
     source_plaintext=random.randint(000000,999999)
     source_plaintext=str(source_plaintext)
     source_plaintext=str.encode(source_plaintext)
-    #response = kms_client.create_key(Description=desc)
-    #print(response)
-    #response['KeyMetadata']['KeyId']
-    ciphertext = kms_client.encrypt(Plaintext=source_plaintext, KeyId='',EncryptionAlgorithm='SYMMETRIC_DEFAULT')
-    print((ciphertext['CiphertextBlob']))
-    cycled_plaintext = kms_client.decrypt(CiphertextBlob=ciphertext['CiphertextBlob'], KeyId='',EncryptionAlgorithm='SYMMETRIC_DEFAULT')
-    print(cycled_plaintext['Plaintext'].decode())
-    # except:
-    #     print("down")
-    #     return None, None
-
-    # Return the key ID and ARN
-    #return response['KeyMetadata']['KeyId'], response['KeyMetadata']['Arn']
+    ciphertext, encryptor_header = client.encrypt(source=source_plaintext, key_provider=master_key_provider)
+    #print(ciphertext)
+    # Decrypt the ciphertext
+    cycled_plaintext, decrypted_header = client.decrypt(source=ciphertext, key_provider=master_key_provider)
+    #print(cycled_plaintext)
+    
     return {
-        'Plaintext':source_plaintext,
-        'Ciphertext': ciphertext['CiphertextBlob'],
-        'Decrypted text': cycled_plaintext['Plaintext'].decode()
+        'Plaintext':source_plaintext.decode(),
+        'Ciphertext': ciphertext,
+        'Decrypted text': cycled_plaintext.decode()
     }
 
 def cycle_string(key_arn, source_plaintext, botocore_session=None):
