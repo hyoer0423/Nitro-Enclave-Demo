@@ -27,7 +27,7 @@ def create_cmk(desc='Customer Master Key'):
     region_name = "ap-northeast-1"
     session1 = boto3.session.Session(aws_access_key_id='',aws_secret_access_key='',region_name=region_name)
     client =aws_encryption_sdk.EncryptionSDKClient(commitment_policy=CommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT)
-    kms_kwargs = dict(key_ids=["arn:aws:kms:ap-northeast-1:196375779214:key/177bb52d-65b1-43ab-911c-182161dc789e"])
+    kms_kwargs = dict(key_ids=[""])
     kms_client = session1.client('kms')
     # try:
     master_key_provider = aws_encryption_sdk.StrictAwsKmsMasterKeyProvider(**kms_kwargs)
